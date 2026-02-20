@@ -111,7 +111,7 @@ def validate(model, loader, find_thres=False):
     # torch.save( torch.stack( [torch.tensor(y_true), torch.tensor(y_pred)] ),  'baseline_predication_for_pr_roc_curve.pth' )
     # exit()
     # =================================================================== #
-    
+
     # Get AP 
     ap = average_precision_score(y_true, y_pred)
 
@@ -277,7 +277,13 @@ if __name__ == '__main__':
 
     model = get_model(opt.arch)
     state_dict = torch.load(opt.ckpt, map_location='cpu')
-    model.fc.load_state_dict(state_dict)
+    if 'model' in state_dict:
+        msg = model.load_state_dict(state_dict['model'], strict=False)
+        print(msg)
+    else:
+        msg = model.fc.load_state_dict(state_dict, strict=True)
+        print(msg)
+
     print ("Model loaded..")
     model.eval()
     model.cuda()
