@@ -6,7 +6,15 @@ import torch
 import torchvision.transforms as transforms
 import torch.utils.data
 import numpy as np
-from sklearn.metrics import average_precision_score, precision_recall_curve, accuracy_score
+from sklearn.metrics import (
+    average_precision_score,
+    accuracy_score,
+    confusion_matrix,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score
+)
 from torch.utils.data import Dataset
 import sys
 from models import get_model
@@ -120,12 +128,24 @@ def validate(model, loader, find_thres=False):
     if not find_thres:
         return ap, r_acc0, f_acc0, acc0
 
-
     # Acc based on the best thres
     best_thres = find_best_threshold(y_true, y_pred)
     r_acc1, f_acc1, acc1 = calculate_acc(y_true, y_pred, best_thres)
 
-    return ap, r_acc0, f_acc0, acc0, r_acc1, f_acc1, acc1, best_thres
+    # Add additional metrics
+    y_label = (y_pred > 0.5).astype(int)
+
+    cm = confusion_matrix(y_true, y_label)
+    precision = precision_score(y_true, y_label)
+    recall = recall_score(y_true, y_label)
+    f1 = f1_score(y_true, y_label)
+    roc_auc = roc_auc_score(y_true, y_pred)
+
+    print("Confusion Matrix:")
+    print(cm)
+    tn, fp, fn, tp = cm.ravel()
+
+    return ap, r_acc0, f_acc0, acc0, r_acc1, f_acc1, acc1, best_thres, precision, recall, f1, roc_auc, tn, fp, fn, tp
 
     
     
@@ -270,11 +290,6 @@ if __name__ == '__main__':
 
     opt = parser.parse_args()
 
-    
-    if os.path.exists(opt.result_folder):
-        shutil.rmtree(opt.result_folder)
-    os.makedirs(opt.result_folder)
-
     model = get_model(opt.arch)
     state_dict = torch.load(opt.ckpt, map_location='cpu')
     if 'model' in state_dict:
@@ -293,26 +308,59 @@ if __name__ == '__main__':
     else:
         dataset_paths = [ dict(real_path=opt.real_path, fake_path=opt.fake_path, data_mode=opt.data_mode) ]
 
+    # Prepare file path
+    ckpt_name = os.path.splitext(os.path.basename(opt.ckpt))[0]
+    csv_filename = f"results_{ckpt_name}.csv"
+    csv_path = os.path.join(opt.result_folder, csv_filename)
 
+    # Check file path
+    if not os.path.exists(opt.result_folder):
+        os.makedirs(opt.result_folder)
+    
+    file_exists = os.path.isfile(csv_path)
 
-    for dataset_path in (dataset_paths):
-        set_seed()
+    # Define headers
+    headers = ['testset', 'accuracy', 'avg_precision', 'precision', 'recall', 'f1', 'roc_auc', 'tn', 'fp', 'fn', 'tp']
+    
+    with open(csv_path, 'a', newline='') as f:
+        writer = csv.writer(f)
 
-        dataset = RealFakeDataset(  dataset_path['real_path'], 
-                                    dataset_path['fake_path'], 
-                                    dataset_path['data_mode'], 
-                                    opt.max_sample, 
-                                    opt.arch,
-                                    jpeg_quality=opt.jpeg_quality, 
-                                    gaussian_sigma=opt.gaussian_sigma,
-                                    )
+        if not file_exists:
+            writer.writerow(headers)
 
-        loader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size, shuffle=False, num_workers=4)
-        ap, r_acc0, f_acc0, acc0, r_acc1, f_acc1, acc1, best_thres = validate(model, loader, find_thres=True)
+        for dataset_path in dataset_paths:
+            set_seed()
 
-        with open( os.path.join(opt.result_folder,'ap.txt'), 'a') as f:
-            f.write(dataset_path['key']+': ' + str(round(ap*100, 2))+'\n' )
+            dataset = RealFakeDataset(
+                dataset_path['real_path'], 
+                dataset_path['fake_path'], 
+                dataset_path['data_mode'], 
+                opt.max_sample, 
+                opt.arch,
+                jpeg_quality=opt.jpeg_quality, 
+                gaussian_sigma=opt.gaussian_sigma,
+            )
 
-        with open( os.path.join(opt.result_folder,'acc0.txt'), 'a') as f:
-            f.write(dataset_path['key']+': ' + str(round(r_acc0*100, 2))+'  '+str(round(f_acc0*100, 2))+'  '+str(round(acc0*100, 2))+'\n' )
+            loader = torch.utils.data.DataLoader(
+                dataset, batch_size=opt.batch_size, shuffle=False, num_workers=4
+            )
 
+            ap, r_acc0, f_acc0, acc0, r_acc1, f_acc1, acc1, best_thres, precision, recall, f1, roc_auc, tn, fp, fn, tp = validate(
+                model, loader, find_thres=True
+            )
+
+            # Safe dataset name
+            testset_name = dataset_path.get('key', 'custom')
+
+            row = [
+                testset_name,
+                round(acc0 * 100, 2),
+                round(ap * 100, 2),
+                round(precision * 100, 2),
+                round(recall * 100, 2),
+                round(f1 * 100, 2),
+                round(roc_auc * 100, 2),
+                tn, fp, fn, tp
+            ]
+
+            writer.writerow(row)

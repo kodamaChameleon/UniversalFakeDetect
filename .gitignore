@@ -4,4 +4,4 @@ __pycache__
 # Data & Results
 datasets
 checkpoints
-clip_vitl14
+results
