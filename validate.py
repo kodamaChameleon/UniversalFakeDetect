@@ -141,8 +141,6 @@ def validate(model, loader, find_thres=False):
     f1 = f1_score(y_true, y_label)
     roc_auc = roc_auc_score(y_true, y_pred)
 
-    print("Confusion Matrix:")
-    print(cm)
     tn, fp, fn, tp = cm.ravel()
 
     return ap, r_acc0, f_acc0, acc0, r_acc1, f_acc1, acc1, best_thres, precision, recall, f1, roc_auc, tn, fp, fn, tp
@@ -216,7 +214,8 @@ class RealFakeDataset(Dataset):
 
         stat_from = "imagenet" if arch.lower().startswith("imagenet") else "clip"
         self.transform = transforms.Compose([
-            transforms.CenterCrop(224),
+            # transforms.CenterCrop(224),
+            transforms.Resize(224),
             transforms.ToTensor(),
             transforms.Normalize( mean=MEAN[stat_from], std=STD[stat_from] ),
         ])
@@ -316,17 +315,15 @@ if __name__ == '__main__':
     # Check file path
     if not os.path.exists(opt.result_folder):
         os.makedirs(opt.result_folder)
-    
-    file_exists = os.path.isfile(csv_path)
 
     # Define headers
-    headers = ['testset', 'accuracy', 'avg_precision', 'precision', 'recall', 'f1', 'roc_auc', 'tn', 'fp', 'fn', 'tp']
+    headers = ['testset', 'accuracy', 'avg_precision', 'precision', 'recall', 'f1', 'roc-auc', 'tn', 'fp', 'fn', 'tp']
     
-    with open(csv_path, 'a', newline='') as f:
-        writer = csv.writer(f)
+    with open(csv_path, 'w', newline='') as f:
 
-        if not file_exists:
-            writer.writerow(headers)
+        # Overwrites any previous file
+        writer = csv.writer(f)
+        writer.writerow(headers)
 
         for dataset_path in dataset_paths:
             set_seed()
@@ -345,6 +342,7 @@ if __name__ == '__main__':
                 dataset, batch_size=opt.batch_size, shuffle=False, num_workers=4
             )
 
+            print(f"Testing {dataset_path['key']}...")
             ap, r_acc0, f_acc0, acc0, r_acc1, f_acc1, acc1, best_thres, precision, recall, f1, roc_auc, tn, fp, fn, tp = validate(
                 model, loader, find_thres=True
             )
