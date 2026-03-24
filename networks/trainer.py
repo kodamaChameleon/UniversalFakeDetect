@@ -28,8 +28,6 @@ class Trainer(BaseModel):
             time.sleep(3)
             params = self.model.parameters()
 
-        
-
         if opt.optim == 'adam':
             self.optimizer = torch.optim.AdamW(params, lr=opt.lr, betas=(opt.beta1, 0.999), weight_decay=opt.weight_decay)
         elif opt.optim == 'sgd':
@@ -69,6 +67,3 @@ class Trainer(BaseModel):
         self.optimizer.zero_grad()
         self.loss.backward()
         self.optimizer.step()
-
-
-

@@ -32,6 +32,22 @@ class BaseModel(nn.Module):
     def test(self):
         with torch.no_grad():
             self.forward()
+    
+    def load_networks(self, load_filename):
+        load_path = os.path.join(self.save_dir, load_filename)
+
+        print(f"Loading checkpoint from {load_path}")
+        checkpoint = torch.load(load_path, map_location=self.device)
+
+        self.model.load_state_dict(checkpoint['model'])
+
+        if not self.opt.new_optim and 'optimizer' in checkpoint:
+            self.optimizer.load_state_dict(checkpoint['optimizer'])
+
+        if 'total_steps' in checkpoint:
+            self.total_steps = checkpoint['total_steps']
+
+        print(f"Resumed at step {self.total_steps}")
 
 
 def init_weights(net, init_type='normal', gain=0.02):
