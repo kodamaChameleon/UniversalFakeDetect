@@ -34,6 +34,10 @@ if __name__ == '__main__':
     val_opt = get_val_opt()
  
     model = Trainer(opt)
+
+    if opt.epoch_count > 1:
+        print(f"Resuming from epoch {opt.epoch_count}")
+        model.load_networks(f"model_epoch_{opt.epoch_count}.pth")
     
     data_loader = create_dataloader(opt)
     val_loader = create_dataloader(val_opt)
@@ -44,7 +48,7 @@ if __name__ == '__main__':
     early_stopping = EarlyStopping(patience=opt.earlystop_epoch, delta=-0.001, verbose=True)
     start_time = time.time()
     print ("Length of data loader: %d" %(len(data_loader)))
-    for epoch in range(opt.niter):
+    for epoch in range(opt.epoch_count + 1, opt.niter + 1):
         
         for i, data in enumerate(data_loader):
             model.total_steps += 1
