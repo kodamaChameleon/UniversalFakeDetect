@@ -32,7 +32,7 @@ STD = {
 
 def recursively_read(rootdir, must_contain, exts=["png", "jpg", "JPEG", "jpeg"]):
     out = [] 
-    for r, d, f in os.walk(rootdir):
+    for r, d, f in os.walk(rootdir, followlinks=True):
         for file in f:
             if (file.split('.')[1] in exts)  and  (must_contain in os.path.join(r, file)):
                 out.append(os.path.join(r, file))
