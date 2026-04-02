@@ -31,7 +31,9 @@ cd UniversalFakeDetect
 
 2. Install the necessary libraries
 ```bash
-pip install torch torchvision
+conda create -n UFD python=3.9
+conda activate UFD
+pip install -r requirements.txt
 ```
 
 ## Data
